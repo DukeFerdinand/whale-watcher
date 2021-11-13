@@ -1,3 +1,4 @@
 export const Emoji = {
-  WHALE: '🐋'
+  WHALE: '🐋',
+  ROBOT: '🤖'
 }

@@ -2,6 +2,7 @@ import {Emoji} from "../constants/emoji";
 import {GraphQLClient} from 'graphql-request'
 import {transactionQuery} from "./queries/transactionQuery";
 import {EthereumDexTrades} from "./types/generated";
+import {ITransaction} from "../types/transaction";
 
 export class WhaleWatcher {
   public readonly contract;
@@ -24,11 +25,11 @@ export class WhaleWatcher {
     })
   }
 
-  public async getLatestTransactions(): Promise<EthereumDexTrades[]> {
+  public async getLatestTransactions(limit = 10_000): Promise<ITransaction[]> {
     const res = await this.gqlClient.request(
       transactionQuery,
       {
-        limit: 10_000, // Adjust this according to transaction frequency
+        limit, // Adjust this according to transaction frequency
         contract: process.env.CONTRACT_ADDRESS
       }
     )
@@ -36,12 +37,17 @@ export class WhaleWatcher {
     return res?.ethereum?.dexTrades
   }
 
-  public async findWhales(trades: EthereumDexTrades[] | undefined) {
+  public async findWhales(trades: ITransaction[] | undefined) {
     // Buy amount will NOT be undefined but the typedefs say otherwise
     return trades?.filter((t) => (t.buyAmount || 0) >= 500_000_000_000) || []
   }
 
-  public async logWhales(whales: EthereumDexTrades[]) {
+  private sellOrBuy(trade: ITransaction):string {
+    console.log(trade.sellCurrency, trade.buyCurrency, trade.transaction?.hash, trade.transaction?.to)
+    return '<- Sell ->'
+  }
+
+  public async logWhales(whales: ITransaction[]) {
     if (whales.length === 1) {
       console.warn(`[Watcher] Found a ${Emoji.WHALE} TX`)
     }
@@ -49,7 +55,16 @@ export class WhaleWatcher {
     if (whales.length > 1) {
       console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE}${Emoji.WHALE}${Emoji.WHALE} TX`)
       whales.forEach((whale, i) => {
-        console.warn(`[Watcher] ${Emoji.WHALE} ${whale.buyAmount?.toLocaleString()} PIT ->  TX https://bscscan.com/tx/${whale.transaction?.hash}`)
+        console.dir({
+          trade: `USD$ ${whale.tradeAmount?.toLocaleString()}`
+        })
+        // if (i === whales.length -1) {
+        //   console.dir(whale)
+        //   console.dir({
+        //     action: whale.buyAmountInUsd
+        //   })
+        // }
+        // console.warn(`[Watcher] ${Emoji.WHALE} ${whale.buyAmount?.toLocaleString()} PIT ${this.sellOrBuy(whale)} ${whale.sellAmount} ${whale.sellCurrency?.symbol} TX`)
       })
     }
   }

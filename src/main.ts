@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import {WhaleWatcher} from "./whaleService/whaleWatcher";
+
 import {Emoji} from "./constants/emoji";
 import {useBot} from "./bot/bot";
 
@@ -12,19 +12,12 @@ async function main() {
   if (!CONTRACT_ADDRESS) {
     throw new Error('[Config] CONTRACT_ADDRESS is missing in ENV!')
   }
-  const watcher = new WhaleWatcher(CONTRACT_ADDRESS)
-
-  // const transactions = await watcher.getLatestTransactions()
-  // const whales = await watcher.findWhales(transactions)
-  // await watcher.logWhales(whales)
-
-
 
   const bot = await useBot();
-  console.log('[Bot]', bot)
+  await bot.startTransactionRoutine(CONTRACT_ADDRESS)
 }
 
 main().catch((e) => {
-  console.warn('Caught an error')
+  console.warn('[Process] Fatal error')
   console.error(e)
 })
