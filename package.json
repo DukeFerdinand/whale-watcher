@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@discordjs/rest": "^0.1.0-canary.0",
+    "discord.js": "^13.3.1",
     "dotenv": "^10.0.0",
     "graphql": "^16.0.1",
     "graphql-request": "^3.6.1",
@@ -20,9 +22,9 @@
   },
   "devDependencies": {
     "@graphql-codegen/cli": "2.2.2",
-    "@types/node": "^16.11.7",
+    "@graphql-codegen/typescript": "2.3.1",
     "@graphql-codegen/typescript-mongodb": "2.2.0",
     "@graphql-codegen/typescript-resolvers": "2.4.0",
-    "@graphql-codegen/typescript": "2.3.1"
+    "@types/node": "^16.11.7"
   }
 }

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 import {WhaleWatcher} from "./whaleService/whaleWatcher";
 import {Emoji} from "./constants/emoji";
+import {useBot} from "./bot/bot";
 
 dotenv.config()
 
@@ -16,6 +17,9 @@ async function main() {
   const transactions = await watcher.getLatestTransactions()
   const whales = await watcher.findWhales(transactions)
   await watcher.logWhales(whales)
+
+  const bot = await useBot();
+  console.log('[Bot]', bot)
 }
 
 main().catch((e) => {
