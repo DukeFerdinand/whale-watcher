@@ -49,7 +49,7 @@ export class WhaleWatcher {
     if (whales.length > 1) {
       console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE}${Emoji.WHALE}${Emoji.WHALE} TX`)
       whales.forEach((whale, i) => {
-        console.warn(`[Watcher] ${Emoji.WHALE} TX[${i + 1}]:  ${whale.buyAmount?.toLocaleString()} PIT`)
+        console.warn(`[Watcher] ${Emoji.WHALE} ${whale.buyAmount?.toLocaleString()} PIT ->  TX https://bscscan.com/tx/${whale.transaction?.hash}`)
       })
     }
   }

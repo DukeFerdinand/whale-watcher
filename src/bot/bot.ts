@@ -1,4 +1,6 @@
-import { Client as BotClient } from "discord.js";
+import {Client as BotClient} from "discord.js";
+import {Emoji} from "../constants/emoji";
+import {ActivityTypes} from "discord.js/typings/enums";
 
 class Bot {
   private bot: BotClient;
@@ -8,11 +10,21 @@ class Bot {
   }
 
   static async createInstance(): Promise<BotClient<true>> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       const bot = new BotClient({
-        intents:[]
+        intents:[],
+        presence: {
+          activities: [
+            {
+              name: `Hunting ${Emoji.WHALE}`,
+              type: ActivityTypes.WATCHING,
+              url: 'https://bscscan.com'
+            }
+          ]
+        }
       })
-      bot.on('ready', (client) => {
+      await bot.login(process.env.BOT_TOKEN)
+      await bot.on('ready', (client) => {
         console.info(`[Bot] Logged in and ready. User id is: ${client.user.tag}`)
 
         resolve(bot)

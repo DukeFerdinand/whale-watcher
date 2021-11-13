@@ -14,9 +14,11 @@ async function main() {
   }
   const watcher = new WhaleWatcher(CONTRACT_ADDRESS)
 
-  const transactions = await watcher.getLatestTransactions()
-  const whales = await watcher.findWhales(transactions)
-  await watcher.logWhales(whales)
+  // const transactions = await watcher.getLatestTransactions()
+  // const whales = await watcher.findWhales(transactions)
+  // await watcher.logWhales(whales)
+
+
 
   const bot = await useBot();
   console.log('[Bot]', bot)

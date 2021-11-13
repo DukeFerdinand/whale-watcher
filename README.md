@@ -1,6 +1,8 @@
 # 🐋 Watcher
 This project is maintained with ❤️ by DukeFerdinand.
 
+Add to your server: [Link](https://discord.com/api/oauth2/authorize?client_id=909128952658948167&permissions=395137271872&scope=bot)
+
 ## Motivation
 Tired of not knowing how many whales are lurking beneath the waves of your favorite coin?
 
