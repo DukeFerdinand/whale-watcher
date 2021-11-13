@@ -13,7 +13,9 @@ async function main() {
   }
   const watcher = new WhaleWatcher(CONTRACT_ADDRESS)
 
-  await watcher.logWhale()
+  const transactions = await watcher.getLatestTransactions()
+  const whales = await watcher.findWhales(transactions)
+  await watcher.logWhales(whales.length)
 }
 
 main().catch((e) => {
