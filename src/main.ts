@@ -15,7 +15,7 @@ async function main() {
 
   const transactions = await watcher.getLatestTransactions()
   const whales = await watcher.findWhales(transactions)
-  await watcher.logWhales(whales.length)
+  await watcher.logWhales(whales)
 }
 
 main().catch((e) => {

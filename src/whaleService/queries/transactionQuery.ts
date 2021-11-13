@@ -1,7 +1,7 @@
 import {gql} from "graphql-request";
 
 export const transactionQuery = gql`
-    query TransactionQuery($limit: Int) {
+    query TransactionQuery($limit: Int, $contract: String) {
         ethereum(network: bsc) {
             dexTrades(
                 options: {
@@ -12,7 +12,7 @@ export const transactionQuery = gql`
                     in: ["Pancake", "Pancake v2"]
                 },
                 smartContractAddress:{
-                    is: "0xB450CBF17F6723Ef9c1bf3C3f0e0aBA368D09bF5"
+                    is: $contract
                 }
             ) {
                 transaction {
