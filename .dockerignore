@@ -4,3 +4,4 @@ codegen.yml
 README.md
 node_modules
 docker
+dist
