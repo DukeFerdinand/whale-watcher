@@ -2,6 +2,7 @@ import {Client as BotClient, TextChannel} from "discord.js";
 import {Emoji} from "../constants/emoji";
 import {ActivityTypes} from "discord.js/typings/enums";
 import {WhaleWatcher} from "../whaleService/whaleWatcher";
+import {createWhaleEmbed} from "./embeds/WhaleTXEmbed";
 
 class Bot {
   private readonly bot: BotClient<true>;
@@ -26,6 +27,10 @@ class Bot {
     if (!this.bot.user) {
       throw new Error('Bot not initiated')
     }
+  }
+
+  public useChannel() {
+    return this.bot?.channels.cache.get(this.channel)as TextChannel
   }
 
   static async createInstance(): Promise<BotClient<true>> {
@@ -69,14 +74,42 @@ class Bot {
     if (!this.transactionsLock) {
       this.transactionsLock = true
       console.info(`[Bot] ${Emoji.ROBOT} Setting transaction lock`)
-      // const watcher = new WhaleWatcher(contractAddress)
-      //
-      // const transactions = await watcher.getLatestTransactions()
-      // const whales = await watcher.findWhales(transactions)
-      // await watcher.logWhales(whales)
-      const channel = (await this.bot?.channels.cache.get(this.channel)) as TextChannel
 
-      await channel.send('test')
+      // Run a watcher instance, getting latest transactions
+      const watcher = new WhaleWatcher(contractAddress)
+
+      const transactions = await watcher.getLatestTransactions()
+      const whaleSightings = await watcher.findWhales(transactions)
+      await watcher.logWhales(whaleSightings)
+
+      // Map all whale sightings into discord message embeds
+      const embeds = whaleSightings.map((whale) => createWhaleEmbed(whale))
+
+      // Grab a ref to the channel
+      const channel = this.useChannel()
+
+      // Do nothing if there are no detected whales
+      if (embeds.length > 0) {
+        // Else check if all will fit in one embed run, max is 10 per message
+        if (embeds.length < 10) {
+          await channel.send({ embeds })
+        } else {
+          const splitEmbeds = []
+          // Loop into sections of 10
+          for (let i = 0; i < embeds.length; i += 10) {
+            splitEmbeds.push(embeds.slice(i, i + 10));
+          }
+
+          // Now send each batch of embeds, numbered for convenience
+          for (const [index, embedChunk] of splitEmbeds.entries()) {
+            await channel.send({ content: `Update ${index + 1}/${splitEmbeds.length}`, embeds: embedChunk })
+          }
+        }
+      } else {
+        console.log(`[Bot] ${Emoji.ROBOT} No ${Emoji.WHALE} transactions detected in boundaries.`)
+      }
+
+
 
       this.transactionsLock = false
     } else {

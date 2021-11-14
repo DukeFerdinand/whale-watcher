@@ -1,7 +1,6 @@
 import {Emoji} from "../constants/emoji";
 import {GraphQLClient} from 'graphql-request'
 import {transactionQuery} from "./queries/transactionQuery";
-import {EthereumDexTrades} from "./types/generated";
 import {ITransaction} from "../types/transaction";
 
 export class WhaleWatcher {
@@ -25,7 +24,7 @@ export class WhaleWatcher {
     })
   }
 
-  public async getLatestTransactions(limit = 10_000): Promise<ITransaction[]> {
+  public async getLatestTransactions(limit = 1_000): Promise<ITransaction[]> {
     const res = await this.gqlClient.request(
       transactionQuery,
       {
@@ -42,30 +41,13 @@ export class WhaleWatcher {
     return trades?.filter((t) => (t.buyAmount || 0) >= 500_000_000_000) || []
   }
 
-  private sellOrBuy(trade: ITransaction):string {
-    console.log(trade.sellCurrency, trade.buyCurrency, trade.transaction?.hash, trade.transaction?.to)
-    return '<- Sell ->'
-  }
-
   public async logWhales(whales: ITransaction[]) {
     if (whales.length === 1) {
-      console.warn(`[Watcher] Found a ${Emoji.WHALE} TX`)
+      console.warn(`[Watcher] Found a ${Emoji.WHALE} transaction`)
     }
 
     if (whales.length > 1) {
-      console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE}${Emoji.WHALE}${Emoji.WHALE} TX`)
-      whales.forEach((whale, i) => {
-        console.dir({
-          trade: `USD$ ${whale.tradeAmount?.toLocaleString()}`
-        })
-        // if (i === whales.length -1) {
-        //   console.dir(whale)
-        //   console.dir({
-        //     action: whale.buyAmountInUsd
-        //   })
-        // }
-        // console.warn(`[Watcher] ${Emoji.WHALE} ${whale.buyAmount?.toLocaleString()} PIT ${this.sellOrBuy(whale)} ${whale.sellAmount} ${whale.sellCurrency?.symbol} TX`)
-      })
+      console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE} transactions!`)
     }
   }
 }
