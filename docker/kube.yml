@@ -19,5 +19,6 @@ spec:
         - name: whale-watcher
           # Add your own personal registry here
           image: registry.dougflynn.dev/whale-watcher:dev
+          imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred
