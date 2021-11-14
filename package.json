@@ -9,7 +9,10 @@
     "build": "tsc -p tsconfig.json",
     "gen-bitquery": "graphql-codegen --config codegen.yml"
   },
-  "keywords": ["whale", "bsc"],
+  "keywords": [
+    "whale",
+    "bsc"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -28,6 +31,7 @@
     "@graphql-codegen/typescript-mongodb": "2.2.0",
     "@graphql-codegen/typescript-resolvers": "2.4.0",
     "@types/node": "^16.11.7",
+    "mongoose": "^6.0.12",
     "nodemon": "^2.0.15"
   }
 }
