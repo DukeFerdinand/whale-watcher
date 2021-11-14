@@ -3,6 +3,7 @@ import {Emoji} from "../constants/emoji";
 import {ActivityTypes} from "discord.js/typings/enums";
 import {WhaleWatcher} from "../whaleService/whaleWatcher";
 import {createWhaleEmbed} from "./embeds/WhaleTXEmbed";
+import {TransactionStorage} from "../database/transactionStorage";
 
 class Bot {
   private readonly bot: BotClient<true>;
@@ -10,8 +11,8 @@ class Bot {
   private transactionsLock: boolean = false;
   private transactionInterval: NodeJS.Timeout | null = null;
 
-  private channel: string = '';
-  private guild: string = '';
+  private readonly channel: string = '';
+  private readonly guild: string = '';
 
   constructor(client: BotClient<true>) {
     const {TARGET_GUILD, TARGET_CHANNEL} = process.env
@@ -63,8 +64,9 @@ class Bot {
     })
   }
 
-  public async startTransactionRoutine(contractAddress: string, timeoutInSeconds = 2) {
+  public async startTransactionRoutine(contractAddress: string, timeoutInSeconds = 60) {
     console.info(`[Bot] ${Emoji.ROBOT} Starting transaction filter routine`)
+    this.runTransactionRoutine(contractAddress).catch(e => console.error('[Bot] Error in transaction routine', e))
     this.transactionInterval = setInterval(() => {
       this.runTransactionRoutine(contractAddress).catch(e => console.error('[Bot] Error in transaction routine', e))
     }, timeoutInSeconds * 1000)
@@ -78,21 +80,41 @@ class Bot {
       // Run a watcher instance, getting latest transactions
       const watcher = new WhaleWatcher(contractAddress)
 
+      // Use transaction service to get transactions
       const transactions = await watcher.getLatestTransactions()
       const whaleSightings = await watcher.findWhales(transactions)
       await watcher.logWhales(whaleSightings)
 
-      // Map all whale sightings into discord message embeds
-      const embeds = whaleSightings.map((whale) => createWhaleEmbed(whale))
+      // Save new sightings to DB
+      const connection = await TransactionStorage.getConnection()
+      const transactionStorage = new TransactionStorage('pitbull-coin', connection)
+      const newSightings = await transactionStorage.storeNewTransactions(
+          whaleSightings.map((sighting) => {
+            if (!sighting.transaction) {
+              throw new Error('[Bot] Got a whale sighting without a hash!')
+            }
 
-      // Grab a ref to the channel
-      const channel = this.useChannel()
+            return sighting.transaction.hash
+          })
+      )
 
       // Do nothing if there are no detected whales
-      if (embeds.length > 0) {
+      if (newSightings.length > 0) {
+        console.warn(`[Watcher] ${newSightings.length} of these are new ${Emoji.WHALE} transactions!`)
+        // Map all whale sightings into discord message embeds
+        const embeds =
+            whaleSightings
+                .filter(w => {
+                  return newSightings.includes(w.transaction?.hash as string)
+                })
+                .map((whale) => createWhaleEmbed(whale))
+
+        // Grab a ref to the channel
+        const channel = this.useChannel()
+
         // Else check if all will fit in one embed run, max is 10 per message
-        if (embeds.length < 10) {
-          await channel.send({ embeds })
+        if (newSightings.length < 10) {
+          await channel.send({ content: `Found new ${Emoji.WHALE} transaction(s)`, embeds })
         } else {
           const splitEmbeds = []
           // Loop into sections of 10
@@ -106,7 +128,7 @@ class Bot {
           }
         }
       } else {
-        console.log(`[Bot] ${Emoji.ROBOT} No ${Emoji.WHALE} transactions detected in boundaries.`)
+        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected in boundaries.`)
       }
 
 

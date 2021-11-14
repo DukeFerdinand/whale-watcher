@@ -28,7 +28,7 @@ export const createWhaleEmbed = (whale: ITransaction) => new MessageEmbed({
     },
     {
       name: '⠀',
-      value: `[Problems? Report here](https://github.com/DukeFerdinand/whale-watcher/issues)`,
+      value: `[Problems or requests? Report here](https://github.com/DukeFerdinand/whale-watcher/issues)`,
       inline: false,
     },
   ],
