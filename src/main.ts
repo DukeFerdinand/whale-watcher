@@ -17,7 +17,6 @@ async function main() {
   }
 
   const bot = await useBot();
-  await bot.startTransactionRoutine(CONTRACT_ADDRESS)
 }
 
 main().catch((e) => {

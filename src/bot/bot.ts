@@ -1,37 +1,52 @@
-import {Client as BotClient, TextChannel} from "discord.js";
+import {Client as BotClient, Intents, TextChannel} from "discord.js";
 import {Emoji} from "../constants/emoji";
 import {ActivityTypes} from "discord.js/typings/enums";
 import {WhaleWatcher} from "../whaleService/whaleWatcher";
 import {createWhaleEmbed} from "./embeds/WhaleTXEmbed";
 import {TransactionStorage} from "../database/transactionStorage";
+import {startWhaleWatcher} from "./commands/startWhaleWatcher";
+import {stopWhaleWatcher} from "./commands/stopWhaleWatcher";
 
 class Bot {
-  private readonly bot: BotClient<true>;
+  public readonly client: BotClient<true>;
   // Used as a safety buffer so we only have one routine accessing at a time
   private transactionsLock: boolean = false;
   private transactionInterval: NodeJS.Timeout | null = null;
 
+  private readonly contract: string;
   private readonly channel: string = '';
   private readonly guild: string = '';
 
   constructor(client: BotClient<true>) {
-    const {TARGET_GUILD, TARGET_CHANNEL} = process.env
+    const {TARGET_GUILD, TARGET_CHANNEL, CONTRACT_ADDRESS} = process.env
     if (!TARGET_GUILD || !TARGET_CHANNEL) {
       throw new Error('Cannot find either TARGET_GUILD or TARGET_CHANNEL')
     }
-    this.bot = client
+
+    if (!CONTRACT_ADDRESS) throw new Error('Cannot track transactions, CONTRACT_ADDRESS missing in env')
+
+    this.client = client
+    this.contract = CONTRACT_ADDRESS
     this.channel = TARGET_CHANNEL
     this.guild = TARGET_GUILD
   }
 
+  public get clientId() {
+    return this.client.user.id
+  }
+
   public checkBotStatus() {
-    if (!this.bot.user) {
+    if (!this.client.user) {
       throw new Error('Bot not initiated')
     }
   }
 
   public useChannel() {
-    return this.bot?.channels.cache.get(this.channel)as TextChannel
+    return this.client?.channels.cache.get(this.channel)as TextChannel
+  }
+
+  public async destroy() {
+    await this.client.destroy()
   }
 
   static async createInstance(): Promise<BotClient<true>> {
@@ -41,8 +56,16 @@ class Bot {
     }
 
     return new Promise(async (resolve) => {
+      // =====================================================
+      // Create Bot
+      // =====================================================
       const bot = new BotClient({
-        intents:[],
+        intents: [
+            Intents.FLAGS.GUILDS,
+            Intents.FLAGS.GUILD_INTEGRATIONS,
+            Intents.FLAGS.GUILD_MESSAGES,
+            Intents.FLAGS.GUILD_MESSAGE_TYPING
+        ],
         presence: {
           activities: [
             {
@@ -53,26 +76,80 @@ class Bot {
           ]
         }
       })
-      await bot.login(process.env.BOT_TOKEN)
-      await bot.on('ready', async (client) => {
+
+      // =====================================================
+      // Register Commands
+      // =====================================================
+      console.log('[Bot Setup] registering commands')
+      bot.on('interactionCreate', async (interaction) => {
+        if (!interaction.isCommand()) return
+
+        const { commandName } = interaction
+
+        if (commandName === 'w-start') {
+          await startWhaleWatcher(interaction)
+          await interaction.reply(`${Emoji.WHALE} Whale watch started!`)
+        }
+
+        if (commandName === 'w-stop') {
+          await stopWhaleWatcher(interaction)
+          await interaction.reply(`${Emoji.WHALE} Whale watch stopped!`)
+        }
+      })
+
+      // =====================================================
+      // One-shot event listeners
+      // =====================================================
+      await bot.once('ready', async (client) => {
         console.info(`[Bot] ${Emoji.ROBOT} Logged in as <${client.user.tag}>`);
         const guild = await bot.guilds.fetch(TARGET_GUILD);
         await guild.channels.fetch(TARGET_CHANNEL)
-
-        resolve(bot)
       })
+
+      // =====================================================
+      // Finally, login and return the bot instance
+      // =====================================================
+      await bot.login(process.env.BOT_TOKEN)
+      resolve(bot)
     })
   }
 
-  public async startTransactionRoutine(contractAddress: string, timeoutInSeconds = 60) {
+  // =====================================================
+  // Start wrapper
+  //
+  // This runs the transaction scanner once to clear
+  // massive lists, then acts as normal on subsequent
+  // runs.
+  // =====================================================
+  public async startTransactionRoutine(timeoutInSeconds = 60) {
     console.info(`[Bot] ${Emoji.ROBOT} Starting transaction filter routine`)
-    this.runTransactionRoutine(contractAddress).catch(e => console.error('[Bot] Error in transaction routine', e))
+    // Run it the first time, not logging output in case there are hundreds of matches
+    this.runTransactionRoutine(this.contract, false).catch(e => console.error('[Bot] Error in transaction routine', e))
+
     this.transactionInterval = setInterval(() => {
-      this.runTransactionRoutine(contractAddress).catch(e => console.error('[Bot] Error in transaction routine', e))
+      this.runTransactionRoutine(this.contract).catch(e => console.error('[Bot] Error in transaction routine', e))
     }, timeoutInSeconds * 1000)
   }
 
-  private async runTransactionRoutine(contractAddress: string) {
+  public stopTransactionRoutine() {
+    if (this.transactionInterval !== null) {
+      clearInterval(this.transactionInterval)
+
+      // Clear any transient state for clearing errors
+      this.transactionInterval = null
+      this.transactionsLock = false
+    }
+  }
+
+
+  // =====================================================
+  // Transaction Routine
+  //
+  // This is more or less a script that gets the data
+  // we need, stores references to new whales, and
+  // optionally sends some embeds.
+  // =====================================================
+  private async runTransactionRoutine(contractAddress: string, sendMessages = true) {
     if (!this.transactionsLock) {
       this.transactionsLock = true
       console.info(`[Bot] ${Emoji.ROBOT} Setting transaction lock`)
@@ -82,13 +159,20 @@ class Bot {
 
       // Use transaction service to get transactions
       const transactions = await watcher.getLatestTransactions()
-      const whaleSightings = await watcher.findWhales(transactions)
+      let whaleSightings = await watcher.findWhales(transactions)
+
+      // Add filters here as more are realized
+      whaleSightings = whaleSightings.filter((sighting) => {
+        // If both are a dex, it's probably some internal crap like pancake skimming
+        return !(sighting.sender?.smartContract?.contractType === 'DEX' && sighting.receiver?.smartContract?.contractType === 'DEX')
+      })
+
       await watcher.logWhales(whaleSightings)
 
       // Save new sightings to DB
       const connection = await TransactionStorage.getConnection()
       const transactionStorage = new TransactionStorage('pitbull-coin', connection)
-      const newSightings = await transactionStorage.storeNewTransactions(
+      let newSightings = await transactionStorage.storeNewTransactions(
           whaleSightings.map((sighting) => {
             if (!sighting.transaction) {
               throw new Error('[Bot] Got a whale sighting without a hash!')
@@ -101,6 +185,15 @@ class Bot {
       // Do nothing if there are no detected whales
       if (newSightings.length > 0) {
         console.warn(`[Watcher] Found ${newSightings.length} new ${Emoji.WHALE} transactions!`)
+      } else {
+        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected.`)
+
+        // Break early
+        this.transactionsLock = false
+        return
+      }
+
+      if (sendMessages) {
         // Map all whale sightings into discord message embeds
         const embeds =
             whaleSightings
@@ -128,10 +221,8 @@ class Bot {
           }
         }
       } else {
-        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected.`)
+        console.info(`[Bot] ${Emoji.ROBOT} Skipping embed round as sendMessages = false`)
       }
-
-
 
       this.transactionsLock = false
     } else {

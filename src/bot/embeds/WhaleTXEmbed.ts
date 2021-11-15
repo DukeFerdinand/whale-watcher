@@ -12,24 +12,24 @@ export const createWhaleEmbed = (whale: ITransaction) => {
     title: `${Emoji.WHALE} Large transfer detected`,
     fields: [
       {
+        name: `Amount (${whale.currency?.symbol})`,
+        value: `${whale.tokenTransferAmount.toLocaleString() || 'N/A'} ${whale.currency?.symbol}`,
+        inline: false,
+      },
+      {
         name: 'Amount (USD)',
         value: `$${'ADD COIN GECKO HERE' || 'N/A'}`,
         inline: true,
       },
       {
-        name: `Amount (${whale.currency?.symbol})`,
-        value: `${whale.tokenTransferAmount.toLocaleString() || 'N/A'} ${whale.currency?.symbol}`,
-        inline: true,
-      },
-      {
         name: `Amount (BNB)`,
         value: `${'ADD COIN GECKO HERE' || 'N/A'} BNB`,
-        inline: false,
+        inline: true,
       },
       {
         name: `Sender Address`,
         value: `[${whale.sender?.address}${whale.sender?.smartContract?.contractType === 'DEX' ? ' - DEX' : ''}](https://bscscan.com/address/${whale.sender?.address})`,
-        inline: true,
+        inline: false,
       },
       {
         name: `Receiver Address`,
