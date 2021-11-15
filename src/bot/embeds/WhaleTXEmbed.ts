@@ -56,7 +56,7 @@ export const createWhaleEmbed = (whale: ITransaction) => {
       },
       {
         name: 'Amount (USD)',
-        value: `$${details.mainToken.usdAmount || 'N/A'}`,
+        value: `$${details.tradeAmount || 'N/A'}`,
         inline: true,
       },
       {
