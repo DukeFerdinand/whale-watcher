@@ -5,3 +5,4 @@ README.md
 node_modules
 docker
 dist
+.env.backup

@@ -6,12 +6,15 @@ import {createWhaleEmbed} from "./embeds/WhaleTXEmbed";
 import {TransactionStorage} from "../database/transactionStorage";
 import {startWhaleWatcher} from "./commands/startWhaleWatcher";
 import {stopWhaleWatcher} from "./commands/stopWhaleWatcher";
+import {CoinGecko} from "../coinGecko";
 
 class Bot {
   public readonly client: BotClient<true>;
   // Used as a safety buffer so we only have one routine accessing at a time
   private transactionsLock: boolean = false;
   private transactionInterval: NodeJS.Timeout | null = null;
+
+  private readonly coinGecko: CoinGecko;
 
   private readonly contract: string;
   private readonly channel: string = '';
@@ -29,6 +32,8 @@ class Bot {
     this.contract = CONTRACT_ADDRESS
     this.channel = TARGET_CHANNEL
     this.guild = TARGET_GUILD
+
+    this.coinGecko = new CoinGecko()
   }
 
   public get clientId() {
@@ -123,6 +128,10 @@ class Bot {
   // =====================================================
   public async startTransactionRoutine(timeoutInSeconds = 60) {
     console.info(`[Bot] ${Emoji.ROBOT} Starting transaction filter routine`)
+
+    // Populate the first round of token prices
+    await this.coinGecko.getTokenPrices();
+
     // Run it the first time, not logging output in case there are hundreds of matches
     this.runTransactionRoutine(this.contract, false).catch(e => console.error('[Bot] Error in transaction routine', e))
 
@@ -152,79 +161,88 @@ class Bot {
   private async runTransactionRoutine(contractAddress: string, sendMessages = true) {
     if (!this.transactionsLock) {
       this.transactionsLock = true
-      console.info(`[Bot] ${Emoji.ROBOT} Setting transaction lock`)
+      try {
+        console.info(`[Bot] ${Emoji.ROBOT} Setting transaction lock`)
 
-      // Run a watcher instance, getting latest transactions
-      const watcher = new WhaleWatcher(contractAddress)
+        // Run a watcher instance, getting latest transactions
+        const watcher = new WhaleWatcher(contractAddress)
 
-      // Use transaction service to get transactions
-      const transactions = await watcher.getLatestTransactions()
-      let whaleSightings = await watcher.findWhales(transactions)
+        // Use transaction service to get transactions
+        const transactions = await watcher.getLatestTransactions()
+        let whaleSightings = await watcher.findWhales(transactions)
 
-      // Add filters here as more are realized
-      whaleSightings = whaleSightings.filter((sighting) => {
-        // If both are a dex, it's probably some internal crap like pancake skimming
-        return !(sighting.sender?.smartContract?.contractType === 'DEX' && sighting.receiver?.smartContract?.contractType === 'DEX')
-      })
+        // Add filters here as more are realized
+        whaleSightings = whaleSightings.filter((sighting) => {
+          // If both are a dex, it's probably some internal crap like pancake skimming
+          return !(sighting.sender?.smartContract?.contractType === 'DEX' && sighting.receiver?.smartContract?.contractType === 'DEX')
+        })
 
-      await watcher.logWhales(whaleSightings)
+        await watcher.logWhales(whaleSightings)
 
-      // Save new sightings to DB
-      const connection = await TransactionStorage.getConnection()
-      const transactionStorage = new TransactionStorage('pitbull-coin', connection)
-      let newSightings = await transactionStorage.storeNewTransactions(
-          whaleSightings.map((sighting) => {
-            if (!sighting.transaction) {
-              throw new Error('[Bot] Got a whale sighting without a hash!')
+        // Save new sightings to DB
+        const connection = await TransactionStorage.getConnection()
+        const transactionStorage = new TransactionStorage('pitbull-coin', connection)
+        let newSightings = await transactionStorage.storeNewTransactions(
+            whaleSightings.map((sighting) => {
+              if (!sighting.transaction) {
+                throw new Error('[Bot] Got a whale sighting without a hash!')
+              }
+
+              return sighting.transaction.hash
+            })
+        )
+
+        // Do nothing if there are no detected whales
+        if (newSightings.length > 0) {
+          console.warn(`[Watcher] Found ${newSightings.length} new ${Emoji.WHALE} transactions!`)
+        } else {
+          console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected.`)
+
+          // Break early
+          this.transactionsLock = false
+          return
+        }
+
+        if (sendMessages) {
+          // Map all whale sightings into discord message embeds
+          const embeds =
+              whaleSightings
+                  .filter(w => {
+                    return newSightings.includes(w.transaction?.hash as string)
+                  })
+                  .map((whale) => createWhaleEmbed(whale, this.coinGecko.currentPrice))
+
+          // Grab a ref to the channel
+          const channel = this.useChannel()
+
+          // Else check if all will fit in one embed run, max is 10 per message
+          if (newSightings.length < 5) {
+            await channel.send({ content: `Found new ${Emoji.WHALE} transaction(s)`, embeds })
+          } else {
+            const splitEmbeds = []
+            // Loop into sections of 10
+            for (let i = 0; i < embeds.length; i += 5) {
+              splitEmbeds.push(embeds.slice(i, i + 5));
             }
 
-            return sighting.transaction.hash
-          })
-      )
-
-      // Do nothing if there are no detected whales
-      if (newSightings.length > 0) {
-        console.warn(`[Watcher] Found ${newSightings.length} new ${Emoji.WHALE} transactions!`)
-      } else {
-        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected.`)
-
-        // Break early
-        this.transactionsLock = false
-        return
-      }
-
-      if (sendMessages) {
-        // Map all whale sightings into discord message embeds
-        const embeds =
-            whaleSightings
-                .filter(w => {
-                  return newSightings.includes(w.transaction?.hash as string)
-                })
-                .map((whale) => createWhaleEmbed(whale))
-
-        // Grab a ref to the channel
-        const channel = this.useChannel()
-
-        // Else check if all will fit in one embed run, max is 10 per message
-        if (newSightings.length < 5) {
-          await channel.send({ content: `Found new ${Emoji.WHALE} transaction(s)`, embeds })
+            // Now send each batch of embeds, numbered for convenience
+            for (const [index, embedChunk] of splitEmbeds.entries()) {
+              await channel.send({ content: `Update ${index + 1}/${splitEmbeds.length}`, embeds: embedChunk })
+            }
+          }
         } else {
-          const splitEmbeds = []
-          // Loop into sections of 10
-          for (let i = 0; i < embeds.length; i += 5) {
-            splitEmbeds.push(embeds.slice(i, i + 5));
-          }
-
-          // Now send each batch of embeds, numbered for convenience
-          for (const [index, embedChunk] of splitEmbeds.entries()) {
-            await channel.send({ content: `Update ${index + 1}/${splitEmbeds.length}`, embeds: embedChunk })
-          }
+          console.info(`[Bot] ${Emoji.ROBOT} Skipping embed round as sendMessages = false`)
         }
-      } else {
-        console.info(`[Bot] ${Emoji.ROBOT} Skipping embed round as sendMessages = false`)
-      }
 
-      this.transactionsLock = false
+        this.transactionsLock = false
+      } catch (e) {
+        console.info(`[Bot] ${Emoji.ROBOT} Something broke! See below.`)
+        console.error(e)
+      } finally {
+        console.info(`[Bot] ${Emoji.ROBOT} Removing lock on transaction process`)
+        // Give up the lock when something breaks
+        this.transactionsLock = false
+      }
     } else {
       console.info(`[Bot] ${Emoji.ROBOT} Transaction still running`)
     }

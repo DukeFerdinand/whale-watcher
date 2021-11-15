@@ -1,12 +1,17 @@
 import {MessageEmbed, MessageEmbedOptions} from "discord.js";
 import {Emoji} from "../../constants/emoji";
 import {ITransaction} from "../../types/transaction";
+import {CoinResponse} from "../../coinGecko";
 
-export const createWhaleEmbed = (whale: ITransaction) => {
-  let {COIN_SYMBOL} = process.env;
-  if (!COIN_SYMBOL) {
-    COIN_SYMBOL = whale.currency?.symbol || ''
+export const createWhaleEmbed = (whale: ITransaction, tokenPrices: CoinResponse) => {
+  let {COIN_GECKO_ID} = process.env;
+
+  if (!COIN_GECKO_ID) {
+    throw new Error('Cannot find COIN_GECKO_ID in env')
   }
+
+  const tokenInUSD = whale.tokenTransferAmount ? whale.tokenTransferAmount * tokenPrices[COIN_GECKO_ID]['usd'] : 'N/A'
+  const tokenInBNB = whale.tokenTransferAmount ? whale.tokenTransferAmount * tokenPrices[COIN_GECKO_ID]['bnb'] : 'N/A'
 
   const embed: MessageEmbedOptions = {
     title: `${Emoji.WHALE} Large transfer detected`,
@@ -18,12 +23,12 @@ export const createWhaleEmbed = (whale: ITransaction) => {
       },
       {
         name: 'Amount (USD)',
-        value: `$${'ADD COIN GECKO HERE' || 'N/A'}`,
+        value: `$${tokenInUSD.toLocaleString()}`,
         inline: true,
       },
       {
         name: `Amount (BNB)`,
-        value: `${'ADD COIN GECKO HERE' || 'N/A'} BNB`,
+        value: `${tokenInBNB.toLocaleString()} BNB`,
         inline: true,
       },
       {
