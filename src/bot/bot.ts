@@ -100,7 +100,7 @@ class Bot {
 
       // Do nothing if there are no detected whales
       if (newSightings.length > 0) {
-        console.warn(`[Watcher] ${newSightings.length} of these are new ${Emoji.WHALE} transactions!`)
+        console.warn(`[Watcher] Found ${newSightings.length} new ${Emoji.WHALE} transactions!`)
         // Map all whale sightings into discord message embeds
         const embeds =
             whaleSightings
@@ -113,13 +113,13 @@ class Bot {
         const channel = this.useChannel()
 
         // Else check if all will fit in one embed run, max is 10 per message
-        if (newSightings.length < 10) {
+        if (newSightings.length < 5) {
           await channel.send({ content: `Found new ${Emoji.WHALE} transaction(s)`, embeds })
         } else {
           const splitEmbeds = []
           // Loop into sections of 10
-          for (let i = 0; i < embeds.length; i += 10) {
-            splitEmbeds.push(embeds.slice(i, i + 10));
+          for (let i = 0; i < embeds.length; i += 5) {
+            splitEmbeds.push(embeds.slice(i, i + 5));
           }
 
           // Now send each batch of embeds, numbered for convenience
@@ -128,7 +128,7 @@ class Bot {
           }
         }
       } else {
-        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected in boundaries.`)
+        console.log(`[Bot] ${Emoji.ROBOT} No new ${Emoji.WHALE} transactions detected.`)
       }
 
 

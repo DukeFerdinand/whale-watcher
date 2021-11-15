@@ -1,67 +1,39 @@
-import {MessageEmbed} from "discord.js";
+import {MessageEmbed, MessageEmbedOptions} from "discord.js";
 import {Emoji} from "../../constants/emoji";
 import {ITransaction} from "../../types/transaction";
-
-type BuySell = {
-  [key in 'mainToken' | 'secondaryToken']: {
-    symbol?: string;
-    amount?: string;
-    usdAmount?: string;
-  }
-} & {
-  actionType: 'sell' | 'buy';
-  tradeAmount: string;
-}
-
-const formatBuySell = (tr: ITransaction): BuySell => {
-  const isBuyAction = tr.sellCurrency?.symbol === process.env.COIN_SYMBOL
-  const tokenBeingBought = {
-    symbol: tr.sellCurrency?.symbol,
-    amount: tr.sellAmount?.toLocaleString(),
-    usdAmount: tr.sellAmountInUsd.toLocaleString()
-  }
-  const tokenUsedToBuy: BuySell['secondaryToken'] = {
-    symbol: tr.buyCurrency?.symbol,
-    amount: tr.buyAmount?.toLocaleString(),
-    usdAmount: tr.buyAmountInUsd.toLocaleString()
-  }
-  // These are weird in the API, but I think that sell = "for sale" vs getting rid of
-  const main = isBuyAction ? tokenBeingBought : tokenUsedToBuy
-  const secondary = isBuyAction ? tokenUsedToBuy : tokenBeingBought
-  return {
-    mainToken: main,
-    secondaryToken: secondary,
-    actionType: isBuyAction ? 'buy' : 'sell',
-    tradeAmount: tr.tradeAmount?.toLocaleString() || 'N/A'
-  }
-}
 
 export const createWhaleEmbed = (whale: ITransaction) => {
   let {COIN_SYMBOL} = process.env;
   if (!COIN_SYMBOL) {
-    COIN_SYMBOL = whale.buyCurrency?.symbol || ''
+    COIN_SYMBOL = whale.currency?.symbol || ''
   }
 
-  const details = formatBuySell(whale)
-  const action = details.actionType === 'buy' ? 'Buy' : 'Sell'
-
-  return new MessageEmbed({
-    title: `${Emoji.WHALE} Whale ${action} alert`,
-    description: `<From address in next release>`,
+  const embed: MessageEmbedOptions = {
+    title: `${Emoji.WHALE} Large transfer detected`,
     fields: [
       {
-        name: `Amount (${details.mainToken.symbol})`,
-        value: `${details.mainToken.amount || 'N/A'}`,
-        inline: false,
-      },
-      {
         name: 'Amount (USD)',
-        value: `$${details.mainToken.usdAmount || 'N/A'}`,
+        value: `$${'ADD COIN GECKO HERE' || 'N/A'}`,
         inline: true,
       },
       {
-        name: `Amount (${details.secondaryToken.symbol})`,
-        value: `${details.secondaryToken.amount || 'N/A'} ${details.secondaryToken.symbol}`,
+        name: `Amount (${whale.currency?.symbol})`,
+        value: `${whale.tokenTransferAmount.toLocaleString() || 'N/A'} ${whale.currency?.symbol}`,
+        inline: true,
+      },
+      {
+        name: `Amount (BNB)`,
+        value: `${'ADD COIN GECKO HERE' || 'N/A'} BNB`,
+        inline: false,
+      },
+      {
+        name: `Sender Address`,
+        value: `[${whale.sender?.address}${whale.sender?.smartContract?.contractType === 'DEX' && ' - DEX'}](https://bscscan.com/address/${whale.sender?.address})`,
+        inline: true,
+      },
+      {
+        name: `Receiver Address`,
+        value: `[${whale.receiver?.address}${whale.receiver?.smartContract?.contractType === 'DEX' && ' - DEX'}](https://bscscan.com/address/${whale.receiver?.address})`,
         inline: true,
       },
       {
@@ -71,12 +43,19 @@ export const createWhaleEmbed = (whale: ITransaction) => {
       },
       {
         name: '⠀',
-        value: `[Problems or requests? Report here](https://github.com/DukeFerdinand/whale-watcher/issues)`,
-        inline: false,
+        value: `[Report Bug/Requests](https://github.com/DukeFerdinand/whale-watcher/issues)`,
+        inline: true,
+      },
+      {
+        name: '⠀',
+        value: `[Donate to fund ${Emoji.ROBOT}](https://bscscan.com/address/0xBa8a95983B04040289310Db2f7Bbf99E455f0D83)`,
+        inline: true,
       },
     ],
     footer: {
       text: `Made with ${Emoji.HEART} by DukeFerdinand`
     }
-  })
+  }
+
+  return new MessageEmbed(embed)
 }
