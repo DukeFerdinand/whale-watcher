@@ -10,26 +10,29 @@ type BuySell = {
   }
 } & {
   actionType: 'sell' | 'buy';
+  tradeAmount: string;
 }
 
 const formatBuySell = (tr: ITransaction): BuySell => {
-  const isBuyAction = tr.buyCurrency?.symbol === process.env.COIN_SYMBOL
-  const buy = {
-    symbol: tr.buyCurrency?.symbol,
-    amount: tr.buyAmount?.toLocaleString(),
-    usdAmount: tr.buyAmountInUsd.toLocaleString()
-  }
-  const sell: BuySell['secondaryToken'] = {
+  const isBuyAction = tr.sellCurrency?.symbol === process.env.COIN_SYMBOL
+  const tokenBeingBought = {
     symbol: tr.sellCurrency?.symbol,
     amount: tr.sellAmount?.toLocaleString(),
     usdAmount: tr.sellAmountInUsd.toLocaleString()
   }
-  const main = isBuyAction ? buy : sell
-  const secondary = isBuyAction ? sell : buy
+  const tokenUsedToBuy: BuySell['secondaryToken'] = {
+    symbol: tr.buyCurrency?.symbol,
+    amount: tr.buyAmount?.toLocaleString(),
+    usdAmount: tr.buyAmountInUsd.toLocaleString()
+  }
+  // These are weird in the API, but I think that sell = "for sale" vs getting rid of
+  const main = isBuyAction ? tokenBeingBought : tokenUsedToBuy
+  const secondary = isBuyAction ? tokenUsedToBuy : tokenBeingBought
   return {
     mainToken: main,
     secondaryToken: secondary,
-    actionType: isBuyAction ? 'buy' : 'sell'
+    actionType: isBuyAction ? 'buy' : 'sell',
+    tradeAmount: tr.tradeAmount?.toLocaleString() || 'N/A'
   }
 }
 
