@@ -24,30 +24,33 @@ export class WhaleWatcher {
     })
   }
 
-  public async getLatestTransactions(limit = 1_000): Promise<ITransaction[]> {
+  public async getLatestTransactions(limit = 100): Promise<ITransaction[]> {
     const res = await this.gqlClient.request(
       transactionQuery,
       {
         limit, // Adjust this according to transaction frequency
-        contract: process.env.CONTRACT_ADDRESS
+        contract: process.env.CONTRACT_ADDRESS,
+        // TODO: Grab this from coingecko every few minutes
+        whaleAmount: 500_000_000_000
       }
     )
 
-    return res?.ethereum?.dexTrades
+    return res?.ethereum?.transfers
   }
 
-  public async findWhales(trades: ITransaction[] | undefined) {
+  public async findWhales(trades: ITransaction[]) {
     // Buy amount will NOT be undefined but the typedefs say otherwise
-    return trades?.filter((t) => (t.buyAmount || 0) >= 500_000_000_000) || []
+    return trades
   }
 
   public async logWhales(whales: ITransaction[]) {
-    if (whales.length === 1) {
-      console.warn(`[Watcher] Found a ${Emoji.WHALE} transaction`)
-    }
+    // whales.forEach(whale => {
+    //   console.info(
+    //       whale.sender,
+    //       whale.receiver?.smartContract?.contractType
+    //   )
+    // })
 
-    if (whales.length > 1) {
-      console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE} transactions!`)
-    }
+    // console.warn(`[Watcher] Found ${whales.length} ${Emoji.WHALE} transactions!`)
   }
 }

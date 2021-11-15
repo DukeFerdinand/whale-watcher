@@ -1,53 +1,38 @@
 import {gql} from "graphql-request";
 
 export const transactionQuery = gql`
-    query TransactionQuery($limit: Int, $contract: String) {
+    query TransactionsQuery($limit: Int, $contract: String, $whaleAmount: Float) {
         ethereum(network: bsc) {
-            dexTrades(
-                options: {
-                    limit: $limit,
-                    desc: "block.height"
-                },
-                exchangeName: {
-                    in: ["Pancake", "Pancake v2"]
-                },
-                smartContractAddress:{
-                    is: $contract
-                }
+            transfers(
+                options: {desc: ["block.height"],
+                    limit: $limit},
+                currency: {is: $contract},
+                amount: {gteq: $whaleAmount }
             ) {
-                transaction {
-                    hash
-                }
-                smartContract {
-                    address {
-                        address
-                    }
-                    contractType
-                    currency {
-                        name
-                    }
-                }
-                tradeIndex
-                date {
-                    date
-                }
                 block {
                     height
                 }
-                buyAmount
-                buyAmountInUsd: buyAmount(in: USD)
-                buyCurrency {
+                sender {
+                    address
+                    smartContract {
+                        contractType
+                    }
+                }
+                currency {
+                    name
                     symbol
+                }
+                tokenTransferAmount: amount
+                transaction{
+                    hash
+                }
+                receiver {
+                    annotation
+                    smartContract {
+                        contractType
+                    }
                     address
                 }
-                sellAmount
-                sellAmountInUsd: sellAmount(in: USD)
-                sellCurrency {
-                    symbol
-                    address
-                }
-                sellAmountInUsd: sellAmount(in: USD)
-                tradeAmount(in: USD)
             }
         }
     }

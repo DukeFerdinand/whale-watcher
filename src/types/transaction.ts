@@ -1,7 +1,5 @@
-import {EthereumDexTrades} from "../whaleService/types/generated";
+import {EthereumDexTrades, EthereumTransfers} from "../whaleService/types/generated";
 
-export type ITransaction = EthereumDexTrades & {
-  buyAmountInUsd: number;
-  sellAmountInUsd: number;
-
+export type ITransaction = EthereumTransfers & {
+  tokenTransferAmount: number
 }
