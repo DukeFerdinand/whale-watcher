@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: whale-watcher
+  name: whale-watcher-deployment
+  labels:
+    app: whale-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whale-watcher
+  template:
+    metadata:
+      labels:
+        app: whale-watcher
+    spec:
+      containers:
+        - name: whale-watcher
+          # Add your own personal registry here
+          image: registry.dougflynn.dev/whale-watcher:pitbull
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: regcred

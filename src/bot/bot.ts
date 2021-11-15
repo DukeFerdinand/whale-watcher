@@ -92,8 +92,12 @@ class Bot {
         const { commandName } = interaction
 
         if (commandName === 'w-start') {
-          await startWhaleWatcher(interaction)
-          await interaction.reply(`${Emoji.WHALE} Whale watch started!`)
+          const started = await startWhaleWatcher(interaction)
+          if (started) {
+            await interaction.reply(`${Emoji.WHALE} Whale watch started!`)
+          } else {
+            await interaction.reply(`${Emoji.WHALE} Could not start, try calling 'w-stop' before restarting :)`)
+          }
         }
 
         if (commandName === 'w-stop') {
@@ -127,17 +131,24 @@ class Bot {
   // runs.
   // =====================================================
   public async startTransactionRoutine(timeoutInSeconds = 60) {
-    console.info(`[Bot] ${Emoji.ROBOT} Starting transaction filter routine`)
+    // Can't start if it's already running
+    if (this.transactionInterval === null) {
+      console.info(`[Bot] ${Emoji.ROBOT} Starting transaction filter routine`)
 
-    // Populate the first round of token prices
-    await this.coinGecko.getTokenPrices();
+      // Populate the first round of token prices
+      await this.coinGecko.getTokenPrices();
 
-    // Run it the first time, not logging output in case there are hundreds of matches
-    this.runTransactionRoutine(this.contract, false).catch(e => console.error('[Bot] Error in transaction routine', e))
+      // Run it the first time, not logging output in case there are hundreds of matches
+      this.runTransactionRoutine(this.contract, false).catch(e => console.error('[Bot] Error in transaction routine', e))
 
-    this.transactionInterval = setInterval(() => {
-      this.runTransactionRoutine(this.contract).catch(e => console.error('[Bot] Error in transaction routine', e))
-    }, timeoutInSeconds * 1000)
+      this.transactionInterval = setInterval(() => {
+        this.runTransactionRoutine(this.contract).catch(e => console.error('[Bot] Error in transaction routine', e))
+      }, timeoutInSeconds * 1000)
+
+      return true
+    } else {
+      return false
+    }
   }
 
   public stopTransactionRoutine() {
