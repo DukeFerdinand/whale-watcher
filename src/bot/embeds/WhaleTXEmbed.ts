@@ -28,12 +28,12 @@ export const createWhaleEmbed = (whale: ITransaction) => {
       },
       {
         name: `Sender Address`,
-        value: `[${whale.sender?.address}${whale.sender?.smartContract?.contractType === 'DEX' && ' - DEX'}](https://bscscan.com/address/${whale.sender?.address})`,
+        value: `[${whale.sender?.address}${whale.sender?.smartContract?.contractType === 'DEX' ? ' - DEX' : ''}](https://bscscan.com/address/${whale.sender?.address})`,
         inline: true,
       },
       {
         name: `Receiver Address`,
-        value: `[${whale.receiver?.address}${whale.receiver?.smartContract?.contractType === 'DEX' && ' - DEX'}](https://bscscan.com/address/${whale.receiver?.address})`,
+        value: `[${whale.receiver?.address}${whale.receiver?.smartContract?.contractType === 'DEX' ? ' - DEX' : ''}](https://bscscan.com/address/${whale.receiver?.address})`,
         inline: true,
       },
       {
