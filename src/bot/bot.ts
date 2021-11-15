@@ -203,35 +203,38 @@ class Bot {
           return
         }
 
-        if (sendMessages) {
-          // Map all whale sightings into discord message embeds
-          const embeds =
-              whaleSightings
-                  .filter(w => {
-                    return newSightings.includes(w.transaction?.hash as string)
-                  })
-                  .map((whale) => createWhaleEmbed(whale, this.coinGecko.currentPrice))
+        // Map all whale sightings into discord message embeds
+        const newWhales =
+            whaleSightings
+                .filter(w => {
+                  return newSightings.includes(w.transaction?.hash as string)
+                })
 
-          // Grab a ref to the channel
-          const channel = this.useChannel()
 
-          // Else check if all will fit in one embed run, max is 10 per message
-          if (newSightings.length < 5) {
-            await channel.send({ content: `Found new ${Emoji.WHALE} transaction(s)`, embeds })
-          } else {
-            const splitEmbeds = []
-            // Loop into sections of 10
-            for (let i = 0; i < embeds.length; i += 5) {
-              splitEmbeds.push(embeds.slice(i, i + 5));
-            }
+        // Grab a ref to the channel
+        const channel = this.useChannel()
 
-            // Now send each batch of embeds, numbered for convenience
-            for (const [index, embedChunk] of splitEmbeds.entries()) {
-              await channel.send({ content: `Update ${index + 1}/${splitEmbeds.length}`, embeds: embedChunk })
-            }
-          }
+        // Else check if all will fit in one embed run, max is 10 per message
+        if (newWhales.length <= 5) {
+          await channel.send({
+            content: `Found new ${Emoji.WHALE} transaction(s)`,
+            embeds: newWhales.map((whale) => createWhaleEmbed(whale, this.coinGecko.currentPrice))
+          })
         } else {
-          console.info(`[Bot] ${Emoji.ROBOT} Skipping embed round as sendMessages = false`)
+          const topWhales = newWhales.sort((a, b) => {
+            if (a.tokenTransferAmount > b.tokenTransferAmount) {
+              return 1
+            }
+            if (a.tokenTransferAmount < b.tokenTransferAmount) {
+              return -1
+            }
+            return 0
+          })
+
+          await channel.send({
+            content: `Showing only top 5 of ${newSightings.length}`,
+            embeds: topWhales.slice(0, 5).map((whale) => createWhaleEmbed(whale, this.coinGecko.currentPrice))
+          })
         }
 
         this.transactionsLock = false
