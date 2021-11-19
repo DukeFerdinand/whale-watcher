@@ -16,6 +16,7 @@ if (!TARGET_GUILD || !BOT_TOKEN || !BOT_ID) {
 
 // Define the expected shape of the commands
 const commands = [
+  new SlashCommandBuilder().setDefaultPermission(ALLOWED_MANAGERS === "").setName('w-init').setDescription('Initialize your server'),
   new SlashCommandBuilder().setDefaultPermission(ALLOWED_MANAGERS === "").setName('w-start').setDescription('Starts whale watcher'),
   new SlashCommandBuilder().setDefaultPermission(ALLOWED_MANAGERS === "").setName('w-stop').setDescription('Stops whale watcher'),
 ]
