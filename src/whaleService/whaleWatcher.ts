@@ -1,4 +1,3 @@
-import {Emoji} from "../constants/emoji";
 import {GraphQLClient} from 'graphql-request'
 import {transactionQuery} from "./queries/transactionQuery";
 import {ITransaction} from "../types/transaction";
@@ -25,13 +24,13 @@ export class WhaleWatcher {
   }
 
   public async getLatestTransactions(limit = 100): Promise<ITransaction[]> {
+    const {WHALE_CUTOFF} = process.env
     const res = await this.gqlClient.request(
       transactionQuery,
       {
         limit, // Adjust this according to transaction frequency
         contract: process.env.CONTRACT_ADDRESS,
-        // TODO: Grab this from coingecko every few minutes
-        whaleAmount: 500_000_000_000
+        whaleAmount: WHALE_CUTOFF ? parseInt(WHALE_CUTOFF) : 500_000_000_000
       }
     )
 
@@ -43,7 +42,7 @@ export class WhaleWatcher {
     return trades
   }
 
-  public async logWhales(whales: ITransaction[]) {
+  public async logWhales(_whales: ITransaction[]) {
     // whales.forEach(whale => {
     //   console.info(
     //       whale.sender,
