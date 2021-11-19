@@ -169,7 +169,7 @@ class Bot {
   // we need, stores references to new whales, and
   // optionally sends some embeds.
   // =====================================================
-  private async runTransactionRoutine(contractAddress: string, sendMessages = true) {
+  private async runTransactionRoutine(contractAddress: string, _sendMessages = true) {
     if (!this.transactionsLock) {
       this.transactionsLock = true
       try {
@@ -193,6 +193,12 @@ class Bot {
         // Save new sightings to DB
         const connection = await TransactionStorage.getConnection()
         const transactionStorage = new TransactionStorage('pitbull-coin', connection)
+
+        if (whaleSightings.length  === 0) {
+          console.log(`[Bot] ${Emoji.ROBOT} No ${Emoji.WHALE} transactions detected in range.`)
+          return
+        }
+
         let newSightings = await transactionStorage.storeNewTransactions(
             whaleSightings.map((sighting) => {
               if (!sighting.transaction) {
